@@ -1,43 +1,75 @@
-const MongoClient = require('mongodb').MongoClient;
+const mongoose = require("mongoose");
+const moment = require("moment");
+const fs = require("fs");
+require("dotenv").config();
 
-// Connection URL
-const url = 'mongodb://localhost:27017';
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true });
 
-// Database Name
-const dbName = 'horizon';
+const IncSchema = new mongoose.Schema({
+  md: Number,
+  inc: Number,
+  azi: Number,
+});
 
-// Create a new MongoClient
-const client = new MongoClient(url);
-const well = {
-  name:"99R",
-  bottom:3250.6,
-  test:{red:25, blue:26},
-  inc:[
-    {md:10,inc:45.6, azi:63.3},
-    {md:120,inc:45.2, azi:63.32},
-  ]
-}
-const field ={
-    name:"Carichan",
-    type:"oil",
-    wells:[well, well],
-}
+const MerSchema = new mongoose.Schema({
+  date: String,
+  status: String,
+  rate: Number,
+  production: Number,
+  work_days: Number,
+});
 
-// Use connect method to connect to the Server
-client.connect(async function(err) {
-  console.log("Connected successfully to server");
+const RateSchema = new mongoose.Schema({
+  date: String,
+  rate: Number,
+  dyanmic: Number,
+  static: Number,
+});
 
-  const db = client.db(dbName);
+const WellSchema = new mongoose.Schema({
+  name: String,
+  pad: String,
+  type: { type: String },
+  status: String,
+  bottom: Number,
+  alt: Number,
+  x: Number,
+  y: Number,
+  lat: Number,
+  lng: Number,
+  inc: [IncSchema],
+  mer: [MerSchema],
+  rates: [RateSchema],
+});
 
-  const fields = db.collection('fields');
+const CoordSchema = new mongoose.Schema({
+  x: Number,
+  y: Number,
+  lat: Number,
+  lng: Number,
+});
 
-  await fields.deleteMany({});
-  await fields.insertOne(field);
-  fields.find({}).toArray((err, docs)=>{
-    console.log(docs);
-  })
+const FieldSchema = new mongoose.Schema({
+  name: { type: String, unique: true },
+  location: String,
+  coordinates: [CoordSchema],
+  wells: [WellSchema],
+});
 
+const Field = mongoose.model("Field", FieldSchema);
 
+const db = mongoose.connection;
 
-  client.close();
+db.once("open", async function () {
+  await Field.deleteMany({});
+
+  const fields = JSON.parse(fs.readFileSync("./data.json"));
+
+  await Field.insertMany(fields).then((res) => {
+    console.log("Done!");
+  });
+
+  Field.find({ name: "Верхнесалымское" }).then((res) => {
+    console.log(res[0].name);
+  });
 });

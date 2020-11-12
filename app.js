@@ -3,8 +3,13 @@ const moment = require("moment");
 const fs = require("fs");
 require("dotenv").config();
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true });
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useUnifiedTopology: true,
+});
 
+// #region Schema
 const IncSchema = new mongoose.Schema({
   md: Number,
   inc: Number,
@@ -22,7 +27,7 @@ const MerSchema = new mongoose.Schema({
 const RateSchema = new mongoose.Schema({
   date: String,
   rate: Number,
-  dyanmic: Number,
+  dynamic: Number,
   static: Number,
 });
 
@@ -55,21 +60,48 @@ const FieldSchema = new mongoose.Schema({
   coordinates: [CoordSchema],
   wells: [WellSchema],
 });
+// #endregion Schema
 
 const Field = mongoose.model("Field", FieldSchema);
 
 const db = mongoose.connection;
 
-db.once("open", async function () {
+const populate = async () => {
   await Field.deleteMany({});
-
   const fields = JSON.parse(fs.readFileSync("./data.json"));
-
   await Field.insertMany(fields).then((res) => {
-    console.log("Done!");
+    console.log("Data loaded!");
   });
+};
 
-  Field.find({ name: "Верхнесалымское" }).then((res) => {
-    console.log(res[0].name);
+const loadInc = async (fieldId, data) => {
+  const res = {};
+  data.forEach((el) => {
+    if (res[el.well]) res[el.well].push(el);
+    else {
+      res[el.well] = [];
+      res[el.well].push(el);
+    }
+  });
+  console.log(res);
+  // await Field.findByIdAndUpdate(fieldId, { wells: res }, { upsert: true });
+};
+const data = [
+  { well: "12R", md: 10, inc: 12, azi: 25.0 },
+  { well: "12R", md: 10, inc: 12, azi: 25.0 },
+  { well: "99R", md: 10, inc: 12, azi: 25.0 },
+  { well: "99R", md: 10, inc: 12, azi: 25.0 },
+];
+const id = "5fad016b4356c52908408255";
+
+db.once("open", async function () {
+  // Populate DB
+  // await populate();
+
+  // Field.find({}, { name: 1 }).then((res) => {
+  //   console.log(res);
+  // });
+  Field.aggregate([{}, { $unwind: "wells" }]).then((res) => {
+    console.log(res);
   });
 });

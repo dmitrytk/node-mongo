@@ -1,7 +1,7 @@
-const mongoose = require("mongoose");
-const moment = require("moment");
-const fs = require("fs");
-require("dotenv").config();
+const mongoose = require('mongoose');
+// const moment = require('moment');
+const fs = require('fs');
+require('dotenv').config();
 
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -30,35 +30,40 @@ const WellSchema = new mongoose.Schema({
   inc: [IncSchema],
 });
 
-WellSchema.index({ name: 1, fieldName: 1 }, {unique:true});
+WellSchema.index({ name: 1, fieldName: 1 }, { unique: true });
 
-const Field = mongoose.model("Field", FieldSchema);
-const Well = mongoose.model("Well", WellSchema);
+const Field = mongoose.model('Field', FieldSchema);
+const Well = mongoose.model('Well', WellSchema);
 
 const db = mongoose.connection;
 
 const populate = async () => {
+  // Delete old data
   await Field.deleteMany({});
   await Well.deleteMany({});
-  const fields = JSON.parse(fs.readFileSync("./fields.json"));
-  const wells = JSON.parse(fs.readFileSync("./wells.json"));
-  await Field.insertMany(fields).then((res) => {
-    console.log("Fields loaded!");
+
+  // Create fields
+  const fields = JSON.parse(fs.readFileSync('./data/fields.json'));
+  await Field.insertMany(fields).then(() => {
+    console.log('Fields loaded!');
   });
-  await Well.insertMany(wells).then((res) => {
-    console.log("Wells loaded!");
+
+  // Create wells
+  const wells = JSON.parse(fs.readFileSync('./data/wells.json'));
+  await Well.insertMany(wells).then(() => {
+    console.log('Wells loaded!');
   });
 };
 
-db.once("open", async function () {
+db.once('open', async () => {
   await populate();
 
-  // Field.find({}, { name: 1, type: 1 }).then((res) => {
-  //   console.log(res);
-  // });
-
-  Well.find({}, { name: 1, inc:1 }).then((res) => {
-    console.log(res);
+  const well = new Well({ name: '1Z', fieldName: 'Carichan' });
+  well.save((err, data) => {
+    console.log(data);
   });
 
+  Well.find({ bottom: { $gt: 1400 } }).then((res) => {
+    console.log(res);
+  });
 });
